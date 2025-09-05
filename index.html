@@ -13,7 +13,7 @@
     html,body{height:100%}
     body{margin:0;background:radial-gradient(1200px 900px at 10% 10%,#111827 0%,transparent 60%),radial-gradient(900px 800px at 90% 30%,#0b1220 0%,transparent 60%),var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Inter,"Noto Sans TC","PingFang TC",Arial,"Microsoft JhengHei",sans-serif}
     .wrap{max-width:1100px;margin:0 auto;padding:24px;display:grid;gap:16px;grid-template-columns:1.2fr .8fr}
-    header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
+    header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .brand{display:flex;gap:12px;align-items:center}
     .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#111,#300),radial-gradient(220px 120px at 120% -10%,#f00,transparent 40%),radial-gradient(220px 120px at -20% 120%,#0ff,transparent 40%);box-shadow:0 0 30px #f003 inset, 0 0 12px #0ff3 inset}
     .stage{border:1px solid #1f2937;border-radius:16px;background:linear-gradient(180deg,#0b1220aa,#0b1220e6), url('https://images.unsplash.com/photo-1526378722484-bd91ca387e72?q=80&w=1600&auto=format&fit=crop') center/cover;min-height:540px;padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -32,18 +32,14 @@
     .badge{display:inline-flex;gap:6px;align-items:center;padding:2px 8px;border-radius:999px;border:1px solid #374151;font-size:12px;color:#cbd5e1}
     .pill{display:inline-flex;padding:6px 10px;border:1px solid #374151;border-radius:999px;color:#a5b4fc;font-size:12px}
     .divider{height:1px;background:#1f2937;margin:8px 0}
-
     .cards{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
     .card{border:1px dashed #334155;border-radius:12px;padding:10px;background:#0b1220}
-
     .floating{position:fixed;right:20px;bottom:20px;display:flex;gap:8px;flex-wrap:wrap}
-
     .avatar{width:72px;height:72px;border-radius:12px;background:url('https://placehold.co/520x867/ff66a3/ffffff.png?text=%E2%80%8B') center/cover;border:1px solid #334155;box-shadow:0 0 24px #ff2b6a22}
     .sys{font-size:12px;color:#e5e7eb80}
-
-    @media (max-width: 980px){
-      .wrap{grid-template-columns:1fr}
-    }
+    .apiBox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .apiBox input{min-width:360px;flex:1;padding:8px 10px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
+    @media (max-width:980px){ .wrap{grid-template-columns:1fr} .apiBox input{min-width:220px} }
   </style>
 </head>
 <body>
@@ -56,7 +52,15 @@
           <div class="sys">Minimal Viable Open-Ended Node · A/B/C · 1分鐘/5分鐘 · 綱要/推薦 · 沉默偵測(10s)</div>
         </div>
       </div>
-      <div class="pill">v0.1 · HTML 單檔</div>
+      <!-- 新增：API 端點設定 -->
+      <div class="apiBox">
+        <label for="api" class="sys">API 端點：</label>
+        <!-- 這裡可填你的 ngrok https URL；也可用 ?api= 覆蓋 -->
+        <input id="api" value="https://00bd7b3e7c01.ngrok-free.app/api/chat" />
+        <button id="btnSave" class="btn-accent">儲存端點</button>
+        <span class="sys" id="saveHint"></span>
+      </div>
+      <div class="pill">v0.2 · HTML 單檔 + LLM</div>
     </header>
 
     <!-- 主舞台 / 對話區 -->
@@ -66,7 +70,7 @@
       <div class="hint">提示：10 秒無操作將自動丟出開放式互動問題；或按右下「立即提問」。</div>
     </section>
 
-    <!-- 說明側欄 -->
+    <!-- 說明側欄（保留原文） -->
     <aside class="side">
       <h3>設計開放式互動節點</h3>
       <div class="badge">infoSide: right · enterFrom: left-top · exitTo: left-bottom</div>
@@ -103,14 +107,35 @@
     </aside>
   </div>
 
-  <!-- 浮動快捷：立即觸發開放式互動 / 重置對話 -->
+  <!-- 浮動快捷 -->
   <div class="floating">
     <button class="btn-accent" id="btnAsk">立即提問</button>
     <button id="btnReset">重置對話</button>
   </div>
 
 <script>
-// ===== 1) 節點資料（可直接替換為你的 JSON 結構） =====
+// ===== 0) API 端點讀寫：支援 ?api= 與 localStorage =====
+const apiInput = () => document.getElementById('api');
+(function initApiField(){
+  const qs = new URL(location.href).searchParams.get('api');
+  const saved = localStorage.getItem('apiEndpoint');
+  if (qs) {
+    apiInput().value = qs;
+    localStorage.setItem('apiEndpoint', qs);
+  } else if (saved) {
+    apiInput().value = saved;
+  }
+})();
+document.getElementById('btnSave').onclick = () => {
+  const v = apiInput().value.trim();
+  if (!/^https?:\/\//i.test(v)) { alert('請輸入有效的 http(s) URL'); return; }
+  localStorage.setItem('apiEndpoint', v);
+  const hint = document.getElementById('saveHint');
+  hint.textContent = '已儲存 ✓';
+  setTimeout(()=> hint.textContent = '', 1500);
+};
+
+// ===== 1) 節點資料（原樣保留） =====
 const OPEN_ENDED_NODE = {
   id:'open-ended', bg:null, bgTitle:'開放式互動節點',
   playerImage:'https://placehold.co/520x867/ff66a3/ffffff.png?text=%E2%80%8B',
@@ -196,7 +221,27 @@ function renderQuick(options){
   });
 }
 
-// 核心：觸發一組「開放式互動」問題（主題/深度/格式 三連問，可分批或合併）
+// ===== 4) 呼叫 LLM（改掉原本的 mock） =====
+async function callLLM(prompt){
+  const api = apiInput().value.trim();
+  try{
+    const res = await fetch(api, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json().catch(()=> ({}));
+    if(!res.ok){
+      throw new Error(data?.error || res.status + " " + res.statusText);
+    }
+    const text = (data && data.text) ? data.text : JSON.stringify(data);
+    return text;
+  }catch(err){
+    return `（呼叫失敗）${String(err)}`;
+  }
+}
+
+// 核心：觸發一組「開放式互動」問題（主題/深度/格式）
 function askOpenEnded(sequence = ['topic','depth','format']){
   lastInteract = Date.now();
   sequence.forEach((kind, idx)=>{
@@ -220,61 +265,45 @@ function askOpenEnded(sequence = ['topic','depth','format']){
           {label:'直接推薦', key:'format', payload:'recommend'}
         ]);
       }
-    }, idx*600); // 依序丟出，讓感覺更自然
+    }, idx*600);
   })
 }
 
-// 記錄當前使用者偏好（可外掛到你的狀態管理）
+// 記錄當前使用者偏好
 const userPrefs = { topic:null, depth:null, format:null };
 
-function handleSelect(key, payload){
+async function handleSelect(key, payload){
   lastInteract = Date.now();
   msgYou(`我選：${payload}`);
   userPrefs[key] = payload;
-  // 當三個維度都選到 → 生成回應（此處用 mock，未連 LLM）
+
   if(userPrefs.topic && userPrefs.depth && userPrefs.format){
     quickRow.innerHTML = '';
     const summary = `收到～主題「${userPrefs.topic}」、時長「${userPrefs.depth}」、呈現「${userPrefs.format}」。`;
     msgBot(summary);
-    const reply = craftMockAnswer(userPrefs);
-    msgBot(reply);
-    // 回到下一輪互動前，重新啟動沉默偵測
+
+    // 產生送給 LLM 的 prompt（你可以自由改寫）
+    const prompt = `
+你是一位專業講解員。請用 ${userPrefs.depth==='1m'?'1 分鐘重點':'5 分鐘深潛'} 的長度，
+以「${userPrefs.format==='outline'?'綱要條列':'直接推薦'}」的方式，說明主題「${userPrefs.topic}」。
+先用一句「超短開場」承接互動，再進入內容。`;
+
+    msgBot('（連線中…）');
+    const llmText = await callLLM(prompt);
+    msgBot(llmText);
+
+    // 下一輪互動
     resetSilence();
-    // 清空選擇，等待下一輪
     userPrefs.topic = userPrefs.depth = userPrefs.format = null;
-    // 段落結束 → 依據設計再次丟出開放式互動（可關閉）
     setTimeout(()=>askOpenEnded(['topic']), 1000);
   }else{
-    // 引導下一題
     if(!userPrefs.topic){ askOpenEnded(['topic']) }
     else if(!userPrefs.depth){ askOpenEnded(['depth']) }
     else if(!userPrefs.format){ askOpenEnded(['format']) }
   }
 }
 
-// 模擬產生一段內容（實務上用 LLM 依據 userPrefs 產生）
-function craftMockAnswer(prefs){
-  const {topic, depth, format} = prefs;
-  const dur = depth==='1m' ? '【1 分鐘精華】' : '【5 分鐘深潛】';
-  const style = format==='outline' ? '綱要' : '推薦';
-  let body = '';
-  if(topic==='散熱'){
-    body = format==='outline'
-      ? '1) 風道：前進後出；2) 散熱器規格：TDP>CPU 熱設計；3) 風扇曲線：溫度分段；4) 機殼濾網清潔。'
-      : '推薦：強調塔散+高靜壓風扇；小機箱選 AIO 240/280；加強進風與正壓配置。';
-  }else if(topic==='燈效'){
-    body = format==='outline'
-      ? '1) Aura 節點：主板/顯卡/周邊同步；2) 功耗影響微；3) Profile 快速切換。'
-      : '推薦：建立「工作/遊戲/展示」三套 Aura Profile，快捷鍵切換，避免常駐耗時設定。';
-  }else{
-    body = format==='outline'
-      ? '1) 供電相數與散熱；2) M.2 配置與帶寬；3) BIOS 關鍵功能；4) 周邊擴充。'
-      : '推薦：依需求選擇；創作→高 USB/Thunderbolt；遊戲→高頻記憶體與良好 VRM 散熱。';
-  }
-  return `${dur}${style}：${body}`;
-}
-
-// ===== 4) 沉默偵測（10 秒） =====
+// ===== 5) 沉默偵測（10 秒） =====
 function resetSilence(){
   if(silenceTimer) clearInterval(silenceTimer);
   silenceTimer = setInterval(()=>{
@@ -287,11 +316,10 @@ function resetSilence(){
   }, 1000);
 }
 
-// ===== 5) 事件繫結 =====
-btnAsk.onclick = ()=>{ askOpenEnded() };
-btnReset.onclick = ()=>{ chatEl.innerHTML=''; quickRow.innerHTML=''; intro(); };
+// ===== 6) 事件繫結與初始化 =====
+document.getElementById('btnAsk').onclick = ()=> askOpenEnded();
+document.getElementById('btnReset').onclick = ()=>{ chatEl.innerHTML=''; quickRow.innerHTML=''; intro(); };
 
-// ===== 6) 初始化 =====
 function intro(){
   msgBot('歡迎回到舞台，今天我們先用「開放式互動」當暖身～');
   msgBot('我會在段落後、換話題前，或你沉默 10 秒時主動丟問題。');
