@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RO姬｜開放式互動節點 Demo</title>
+  <meta name="description" content="最小可行的開放式互動：A/B/C 分岔＋1分/5分資訊密度＋綱要/推薦，含沉默偵測與隨機模板池。" />
+  <style>
+    :root{
+      --bg:#0b0f1a; --panel:#101827; --ink:#e5e7eb; --muted:#9ca3af; --accent:#ef4444; --accent2:#22d3ee; --card:#0d1320; --edge:#ff475770;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:radial-gradient(1200px 900px at 10% 10%,#111827 0%,transparent 60%),radial-gradient(900px 800px at 90% 30%,#0b1220 0%,transparent 60%),var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Inter,"Noto Sans TC","PingFang TC",Arial,"Microsoft JhengHei",sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:24px;display:grid;gap:16px;grid-template-columns:1.2fr .8fr}
+    header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#111,#300),radial-gradient(220px 120px at 120% -10%,#f00,transparent 40%),radial-gradient(220px 120px at -20% 120%,#0ff,transparent 40%);box-shadow:0 0 30px #f003 inset, 0 0 12px #0ff3 inset}
+    .stage{border:1px solid #1f2937;border-radius:16px;background:linear-gradient(180deg,#0b1220aa,#0b1220e6), url('https://images.unsplash.com/photo-1526378722484-bd91ca387e72?q=80&w=1600&auto=format&fit=crop') center/cover;min-height:540px;padding:16px;display:flex;flex-direction:column;gap:12px}
+    .chat{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:4px}
+    .msg{max-width:78%;padding:12px 14px;border-radius:14px;line-height:1.5}
+    .bot{align-self:flex-start;background:linear-gradient(180deg,#0f172a,#0b1220);border:1px solid #1f2937}
+    .you{align-self:flex-end;background:#111827;border:1px solid #1f2937}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    button{cursor:pointer;border:1px solid #334155;background:#0b1220;color:var(--ink);padding:10px 12px;border-radius:12px;transition:transform .06s ease, box-shadow .2s}
+    button:hover{transform:translateY(-1px);box-shadow:0 6px 18px #0006}
+    .btn-accent{border-color:#4b5563;background:linear-gradient(135deg,#111827,#0b1220);}
+    .side{border:1px solid #1f2937;border-radius:16px;background:linear-gradient(180deg,#0b1220e6,#0b1220);padding:16px;position:relative}
+    .side h3{margin:0 0 8px 0}
+    .side .line{color:var(--muted);font-size:14px;margin:8px 0}
+    .badge{display:inline-flex;gap:6px;align-items:center;padding:2px 8px;border-radius:999px;border:1px solid #374151;font-size:12px;color:#cbd5e1}
+    .pill{display:inline-flex;padding:6px 10px;border:1px solid #374151;border-radius:999px;color:#a5b4fc;font-size:12px}
+    .divider{height:1px;background:#1f2937;margin:8px 0}
+
+    .cards{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+    .card{border:1px dashed #334155;border-radius:12px;padding:10px;background:#0b1220}
+
+    .floating{position:fixed;right:20px;bottom:20px;display:flex;gap:8px;flex-wrap:wrap}
+
+    .avatar{width:72px;height:72px;border-radius:12px;background:url('https://placehold.co/520x867/ff66a3/ffffff.png?text=%E2%80%8B') center/cover;border:1px solid #334155;box-shadow:0 0 24px #ff2b6a22}
+    .sys{font-size:12px;color:#e5e7eb80}
+
+    @media (max-width: 980px){
+      .wrap{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <div style="font-weight:700;letter-spacing:.2px">RO姬｜開放式互動節點 Demo</div>
+          <div class="sys">Minimal Viable Open-Ended Node · A/B/C · 1分鐘/5分鐘 · 綱要/推薦 · 沉默偵測(10s)</div>
+        </div>
+      </div>
+      <div class="pill">v0.1 · HTML 單檔</div>
+    </header>
+
+    <!-- 主舞台 / 對話區 -->
+    <section class="stage" id="stage">
+      <div class="chat" id="chat"></div>
+      <div class="row" id="quickRow"></div>
+      <div class="hint">提示：10 秒無操作將自動丟出開放式互動問題；或按右下「立即提問」。</div>
+    </section>
+
+    <!-- 說明側欄 -->
+    <aside class="side">
+      <h3>設計開放式互動節點</h3>
+      <div class="badge">infoSide: right · enterFrom: left-top · exitTo: left-bottom</div>
+      <div class="divider"></div>
+      <div class="line">讓 RO姬不只是回答，而會在適當時機主動提問。</div>
+      <div class="line">例如：「肉包們，你最想了解哪一部分？散熱、燈效，還是主板架構？」</div>
+      <div class="line">這樣既符合設定，又能引導對話更深入。</div>
+      <div class="divider"></div>
+      <div class="cards">
+        <div class="card">
+          <b>啟動時機</b>
+          <ul style="margin:8px 0 0 18px">
+            <li>解說完一段內容</li>
+            <li>換話題前的銜接</li>
+            <li>對方沉默 3 句 / 10 秒未回應</li>
+          </ul>
+        </div>
+        <div class="card">
+          <b>模板池</b>
+          <ul style="margin:8px 0 0 18px">
+            <li>你最想了解哪一部分？〔A〕、〔B〕，還是〔C〕？</li>
+            <li>要 1 分鐘重點版，還是 5 分鐘深潛版？</li>
+            <li>我先給你綱要還是直接推薦？</li>
+          </ul>
+        </div>
+        <div class="card">
+          <b>範例</b>
+          <ul style="margin:8px 0 0 18px">
+            <li>肉包們，先聊散熱、燈效，還是主板架構？</li>
+            <li>想先看快速比一比，還是聽我說為什麼這款更穩？</li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 浮動快捷：立即觸發開放式互動 / 重置對話 -->
+  <div class="floating">
+    <button class="btn-accent" id="btnAsk">立即提問</button>
+    <button id="btnReset">重置對話</button>
+  </div>
+
+<script>
+// ===== 1) 節點資料（可直接替換為你的 JSON 結構） =====
+const OPEN_ENDED_NODE = {
+  id:'open-ended', bg:null, bgTitle:'開放式互動節點',
+  playerImage:'https://placehold.co/520x867/ff66a3/ffffff.png?text=%E2%80%8B',
+  nameFill:'開放式互動',
+  module:{
+    title:'開放式互動節點',
+    sections:[
+      { label:'啟動時機', items:['解說完一段內容','換話題前的銜接','對方沉默 3 句 / 10 秒未回應'] },
+      { label:'模板', items:[
+        '你最想了解哪一部分？〔A〕、〔B〕，還是〔C〕？',
+        '要 1 分鐘重點版，還是 5 分鐘深潛版？',
+        '我先給你綱要還是直接推薦？'
+      ]},
+      { label:'範例', items:[
+        '肉包們，先聊散熱、燈效，還是主板架構？',
+        '想先看快速比一比，還是聽我說為什麼這款更穩？'
+      ]}
+    ]
+  },
+  infoSide:'right',
+  infoTitle:'設計開放式互動節點',
+  infoLines:[
+    '讓 RO姬不只是回答，而會在適當時機主動提問。',
+    '例如：「肉包們，你最想了解哪一部分？散熱、燈效，還是主板架構？」',
+    '這樣既符合設定，又助於引導對話往更深入的互動方向進行。'
+  ],
+  enterFrom:'left-top', exitTo:'left-bottom', bgShift:{x:-3,y:-3}
+};
+
+// ===== 2) Prompt 池（語氣變體） =====
+const PROMPT_POOL = {
+  topic: [
+    '肉包們，你最想了解哪一部分？〔散熱〕、〔燈效〕，還是〔主板架構〕？',
+    '想從哪個面向切入？〔A. 散熱〕〔B. 燈效〕〔C. 主板〕',
+    '本小姐可以直接上重點～先挑一個吧：散熱 / 燈效 / 主板 🫶'
+  ],
+  depth: [
+    '要 1 分鐘重點版，還是 5 分鐘深潛版？',
+    '要不要我先來個速讀(1m) 或是長篇解析(5m)？',
+    '時間怎麼安排？1 分鐘快照 vs 5 分鐘深潛'
+  ],
+  format: [
+    '我先給你綱要還是直接推薦？',
+    '要骨幹架構(綱要) 還是直接說結論(推薦)？',
+    '先藍圖還是直球建議？'
+  ]
+};
+
+// ===== 3) UI 與互動 =====
+const chatEl = document.getElementById('chat');
+const quickRow = document.getElementById('quickRow');
+const btnAsk = document.getElementById('btnAsk');
+const btnReset = document.getElementById('btnReset');
+
+let silenceTimer = null;
+let lastInteract = Date.now();
+
+function now(){return new Date().toLocaleTimeString('zh-TW',{hour12:false})}
+function scrollBottom(){chatEl.scrollTop = chatEl.scrollHeight}
+
+function msgBot(text){
+  const el = document.createElement('div');
+  el.className = 'msg bot';
+  el.innerHTML = `🟥 RO姬 <span class="sys">${now()}</span><br>${text}`;
+  chatEl.appendChild(el); scrollBottom();
+}
+function msgYou(text){
+  const el = document.createElement('div');
+  el.className = 'msg you';
+  el.innerHTML = `🟦 你 <span class="sys">${now()}</span><br>${text}`;
+  chatEl.appendChild(el); scrollBottom();
+}
+
+function rand(arr){return arr[Math.floor(Math.random()*arr.length)]}
+
+function renderQuick(options){
+  quickRow.innerHTML = '';
+  options.forEach(opt=>{
+    const b = document.createElement('button');
+    b.textContent = opt.label;
+    b.onclick = ()=>{ handleSelect(opt.key, opt.payload) };
+    quickRow.appendChild(b);
+  });
+}
+
+// 核心：觸發一組「開放式互動」問題（主題/深度/格式 三連問，可分批或合併）
+function askOpenEnded(sequence = ['topic','depth','format']){
+  lastInteract = Date.now();
+  sequence.forEach((kind, idx)=>{
+    setTimeout(()=>{
+      const text = rand(PROMPT_POOL[kind]);
+      msgBot(text);
+      if(kind==='topic'){
+        renderQuick([
+          {label:'散熱 (A)', key:'topic', payload:'散熱'},
+          {label:'燈效 (B)', key:'topic', payload:'燈效'},
+          {label:'主板 (C)', key:'topic', payload:'主板'}
+        ]);
+      }else if(kind==='depth'){
+        renderQuick([
+          {label:'1 分鐘重點', key:'depth', payload:'1m'},
+          {label:'5 分鐘深潛', key:'depth', payload:'5m'}
+        ]);
+      }else if(kind==='format'){
+        renderQuick([
+          {label:'綱要', key:'format', payload:'outline'},
+          {label:'直接推薦', key:'format', payload:'recommend'}
+        ]);
+      }
+    }, idx*600); // 依序丟出，讓感覺更自然
+  })
+}
+
+// 記錄當前使用者偏好（可外掛到你的狀態管理）
+const userPrefs = { topic:null, depth:null, format:null };
+
+function handleSelect(key, payload){
+  lastInteract = Date.now();
+  msgYou(`我選：${payload}`);
+  userPrefs[key] = payload;
+  // 當三個維度都選到 → 生成回應（此處用 mock，未連 LLM）
+  if(userPrefs.topic && userPrefs.depth && userPrefs.format){
+    quickRow.innerHTML = '';
+    const summary = `收到～主題「${userPrefs.topic}」、時長「${userPrefs.depth}」、呈現「${userPrefs.format}」。`;
+    msgBot(summary);
+    const reply = craftMockAnswer(userPrefs);
+    msgBot(reply);
+    // 回到下一輪互動前，重新啟動沉默偵測
+    resetSilence();
+    // 清空選擇，等待下一輪
+    userPrefs.topic = userPrefs.depth = userPrefs.format = null;
+    // 段落結束 → 依據設計再次丟出開放式互動（可關閉）
+    setTimeout(()=>askOpenEnded(['topic']), 1000);
+  }else{
+    // 引導下一題
+    if(!userPrefs.topic){ askOpenEnded(['topic']) }
+    else if(!userPrefs.depth){ askOpenEnded(['depth']) }
+    else if(!userPrefs.format){ askOpenEnded(['format']) }
+  }
+}
+
+// 模擬產生一段內容（實務上用 LLM 依據 userPrefs 產生）
+function craftMockAnswer(prefs){
+  const {topic, depth, format} = prefs;
+  const dur = depth==='1m' ? '【1 分鐘精華】' : '【5 分鐘深潛】';
+  const style = format==='outline' ? '綱要' : '推薦';
+  let body = '';
+  if(topic==='散熱'){
+    body = format==='outline'
+      ? '1) 風道：前進後出；2) 散熱器規格：TDP>CPU 熱設計；3) 風扇曲線：溫度分段；4) 機殼濾網清潔。'
+      : '推薦：強調塔散+高靜壓風扇；小機箱選 AIO 240/280；加強進風與正壓配置。';
+  }else if(topic==='燈效'){
+    body = format==='outline'
+      ? '1) Aura 節點：主板/顯卡/周邊同步；2) 功耗影響微；3) Profile 快速切換。'
+      : '推薦：建立「工作/遊戲/展示」三套 Aura Profile，快捷鍵切換，避免常駐耗時設定。';
+  }else{
+    body = format==='outline'
+      ? '1) 供電相數與散熱；2) M.2 配置與帶寬；3) BIOS 關鍵功能；4) 周邊擴充。'
+      : '推薦：依需求選擇；創作→高 USB/Thunderbolt；遊戲→高頻記憶體與良好 VRM 散熱。';
+  }
+  return `${dur}${style}：${body}`;
+}
+
+// ===== 4) 沉默偵測（10 秒） =====
+function resetSilence(){
+  if(silenceTimer) clearInterval(silenceTimer);
+  silenceTimer = setInterval(()=>{
+    const idle = (Date.now()-lastInteract)/1000;
+    if(idle>=10){
+      clearInterval(silenceTimer);
+      msgBot('（咳）這裡需要我帶一下嗎？');
+      askOpenEnded(['topic']);
+    }
+  }, 1000);
+}
+
+// ===== 5) 事件繫結 =====
+btnAsk.onclick = ()=>{ askOpenEnded() };
+btnReset.onclick = ()=>{ chatEl.innerHTML=''; quickRow.innerHTML=''; intro(); };
+
+// ===== 6) 初始化 =====
+function intro(){
+  msgBot('歡迎回到舞台，今天我們先用「開放式互動」當暖身～');
+  msgBot('我會在段落後、換話題前，或你沉默 10 秒時主動丟問題。');
+  askOpenEnded(['topic']);
+  resetSilence();
+}
+intro();
+</script>
+</body>
+</html>
